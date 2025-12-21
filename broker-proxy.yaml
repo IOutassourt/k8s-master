@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: broker-proxy
+  namespace: demo
+spec:
+  type: ExternalName
+  externalName: default-broker.demo.svc.cluster.local

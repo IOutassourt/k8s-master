@@ -1,0 +1,15 @@
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: worker-a-trigger
+  namespace: demo
+spec:
+  broker: default
+  filter:
+    attributes:
+      type: com.example.query.requested
+  subscriber:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: worker-a

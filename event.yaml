@@ -1,0 +1,16 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: worker-a
+  namespace: demo
+spec:
+  template:
+    spec:
+      containers:
+        - image: leradicator/ce-function:latest
+          env:
+            - name: STORAGE_URL
+              value: http://result-store.demo.svc.cluster.local
+          #args:
+          #  - "-text=svc-a OK"
+          #  - "-listen=:8080"

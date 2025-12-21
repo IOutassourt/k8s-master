@@ -1,0 +1,28 @@
+minimumLimaVersion: 2.0.0
+
+base:
+- template:_images/ubuntu-25.10
+#- template:_default/mounts
+
+mounts:
+  - location: "~"
+    writable: false
+  - location: "~/Projects/K8s/k8s-master"
+    writable: true
+    mountPoint: /home/lima-master
+
+ssh:
+  localPort: 60022
+
+containerd:
+  system: true
+
+networks:
+  - lima: shared
+    interface: en0
+
+portForwards:
+  - guestPort: 6443
+    hostPort: 7443
+  - guestPort: 6444
+    hostPort: 7444

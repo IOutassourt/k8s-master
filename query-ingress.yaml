@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: query-ingress
+  namespace: demo
+  annotations:
+    konghq.com/strip-path: "true"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: api.example.test
+      http:
+        paths:
+          - path: /results
+            pathType: Prefix
+            backend:
+              service:
+                name: query-service
+                port:
+                  number: 80

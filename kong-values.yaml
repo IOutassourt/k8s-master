@@ -1,0 +1,32 @@
+env:
+  database: "off"
+  declarative_config: /kong/kong.yml
+  log_level: debug
+  proxy_access_log: /dev/stdout
+  proxy_error_log: /dev/stderr
+
+proxy:
+  enabled: true
+
+#extraVolumes:
+#  - name: kong-declarative-config
+#    configMap:
+#      name: kong-declarative
+#
+#extraVolumeMounts:
+#  - name: kong-declarative-config
+#    mountPath: /kong
+
+admin:
+  enabled: true
+
+deployment:
+  userDefinedVolumes:
+    - name: "kong-declarative"
+      configMap:
+        name: kong-declarative # The name of your ConfigMap
+
+  userDefinedVolumeMounts:
+    - name: "kong-declarative"
+      mountPath: "/kong/kong.yml"
+      subPath: "kong.yml" # Mount only this specific key as a file

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-declarative
+  namespace: kong
+data:
+  kong.yml: |
+    _format_version: "3.0"
+    _format_version: "3.0"
+
+    services:
+      - name: sink
+        url: http://broker-ingress.knative-eventing.svc.cluster.local:80
+        routes:
+          - name: catch-all
+            paths:
+              - /
+            strip_path: true
+            hosts:
+              - "*"
