@@ -6,3 +6,24 @@ metadata:
 spec:
   type: ExternalName
   externalName: default-broker.demo.svc.cluster.local
+--
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: broker-ingress
+  namespace: demo
+  annotations:
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: events.example.test
+      http:
+        paths:
+          - path: /demo/default
+            pathType: Prefix
+            backend:
+              service:
+                name: broker-proxy
+                port:
+                  number: 80

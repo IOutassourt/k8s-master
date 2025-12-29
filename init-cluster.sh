@@ -1,5 +1,50 @@
-#export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-#sudo chmod o+r /etc/rancher/k3s/k3s.yaml
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+sudo chmod o+r /etc/rancher/k3s/k3s.yaml
+
+######################################################################
+#         Installing Knative                                         #
+######################################################################
+
+# Serving
+sudo k3s kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.20.0/serving-crds.yaml
+sudo k3s kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.20.0/serving-core.yaml
+
+# Eventing
+kubectl apply -f https://github.com/knative/eventing/releases/download/knative-v1.20.0/eventing-crds.yaml
+kubectl apply -f https://github.com/knative/eventing/releases/download/knative-v1.20.0/eventing-core.yaml
+kubectl apply -f eventing-core.yaml
+kubectl apply -f https://github.com/knative/eventing/releases/download/knative-v1.20.0/in-memory-channel.yaml
+kubectl apply -f https://github.com/knative/eventing/blob/main/config/channels/in-memory-channel/deployments/controller.yaml
+kubectl create clusterrolebinding eventing-controller-binding \
+  --clusterrole=cluster-admin \
+  --serviceaccount=knative-eventing:eventing-controller
+openssl genrsa -out /home/lima-master/ca.key 2048
+openssl req -x509 -new -nodes -key /home/lima-master/ca.key -subj "/CN=knative-ca" -days 365 -out /home/lima-master/ca.crt
+openssl genrsa -out /home/lima-master/tls.key 2048
+openssl req -new -key /home/lima-master/tls.key -subj "/CN=inmemorychannel-webhook.knative-eventing.svc" -out /home/lima-master/tls.csr
+openssl x509 -req -in /home/lima-master/tls.csr -CA /home/lima-master/ca.crt -CAkey /home/lima-master/ca.key -CAcreateserial -out /home/lima-master/tls.crt -days 365 -extensions v3_req -extfile <(printf "[v3_req]\nsubjectAltName=DNS:inmemorychannel-webhook.knative-eventing.svc")
+mv /home/lima-master/ca.crt /home/lima-master/ca-cert.pem
+kubectl delete secret inmemorychannel-webhook-certs -n knative-eventing
+kubectl create secret generic inmemorychannel-webhook-certs \
+  --from-file=tls.crt=/home/lima-master/tls.crt \
+  --from-file=tls.key=/home/lima-master/tls.key \
+  --from-file=ca-cert.pem=/home/lima-master/ca-cert.pem \
+  -n knative-eventing
+kubectl rollout restart deployment eventing-webhook -n knative-eventing
+kubectl rollout restart deployment imc-controller -n knative-eventing
+kubectl apply -f https://github.com/knative/eventing/releases/download/knative-v1.20.0/mt-channel-broker.yaml
+
+# Kourier
+sudo k3s kubectl apply -f https://github.com/knative/net-kourier/releases/download/knative-v1.20.0/kourier.yaml
+
+# Patch the config to use Kourier
+sudo k3s kubectl patch configmap/config-network \
+  --namespace knative-serving \
+  --type merge \
+  -p '{"data":{"ingress.class":"kourier.ingress.networking.knative.dev"}}'
+
+
+
 #
 #curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 #
@@ -179,43 +224,6 @@ helm upgrade --install kong kong/kong --values kong-values.yaml --kubeconfig /et
 sudo k3s kubectl -n kong get pods
 sudo k3s kubectl -n kong get svc
 
-# Serving
-sudo k3s kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.20.0/serving-crds.yaml
-sudo k3s kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.20.0/serving-core.yaml
-
-# Eventing
-kubectl apply -f https://github.com/knative/eventing/releases/download/knative-v1.20.0/eventing-crds.yaml
-kubectl apply -f https://github.com/knative/eventing/releases/download/knative-v1.20.0/eventing-core.yaml
-kubectl apply -f eventing-core.yaml
-kubectl apply -f https://github.com/knative/eventing/releases/download/knative-v1.20.0/in-memory-channel.yaml
-kubectl apply -f https://github.com/knative/eventing/blob/main/config/channels/in-memory-channel/deployments/controller.yaml
-kubectl create clusterrolebinding eventing-controller-binding \
-  --clusterrole=cluster-admin \
-  --serviceaccount=knative-eventing:eventing-controller
-openssl genrsa -out /home/lima-master/ca.key 2048
-openssl req -x509 -new -nodes -key /home/lima-master/ca.key -subj "/CN=knative-ca" -days 365 -out /home/lima-master/ca.crt
-openssl genrsa -out /home/lima-master/tls.key 2048
-openssl req -new -key /home/lima-master/tls.key -subj "/CN=inmemorychannel-webhook.knative-eventing.svc" -out /home/lima-master/tls.csr
-openssl x509 -req -in /home/lima-master/tls.csr -CA /home/lima-master/ca.crt -CAkey /home/lima-master/ca.key -CAcreateserial -out /home/lima-master/tls.crt -days 365 -extensions v3_req -extfile <(printf "[v3_req]\nsubjectAltName=DNS:inmemorychannel-webhook.knative-eventing.svc")
-mv /home/lima-master/ca.crt /home/lima-master/ca-cert.pem
-kubectl delete secret inmemorychannel-webhook-certs -n knative-eventing
-kubectl create secret generic inmemorychannel-webhook-certs \
-  --from-file=tls.crt=/home/lima-master/tls.crt \
-  --from-file=tls.key=/home/lima-master/tls.key \
-  --from-file=ca-cert.pem=/home/lima-master/ca-cert.pem \
-  -n knative-eventing
-kubectl rollout restart deployment eventing-webhook -n knative-eventing
-kubectl rollout restart deployment imc-controller -n knative-eventing
-kubectl apply -f https://github.com/knative/eventing/releases/download/knative-v1.20.0/mt-channel-broker.yaml
-
-# Kourier
-sudo k3s kubectl apply -f https://github.com/knative/net-kourier/releases/download/knative-v1.20.0/kourier.yaml
-
-# Patch the config to use Kourier
-sudo k3s kubectl patch configmap/config-network \
-  --namespace knative-serving \
-  --type merge \
-  -p '{"data":{"ingress.class":"kourier.ingress.networking.knative.dev"}}'
 
 # Get Kourier proxy service name
 sudo k3s kubectl -n kourier-system get svc
@@ -225,9 +233,9 @@ sudo k3s kubectl -n kourier-system get svc
 sudo k3s kubectl apply -f ns.yaml #1
 sudo k3s kubectl apply -f broker.yaml #1
 sudo k3s kubectl apply -f event.yaml #0
-sudo k3s kubectl apply -f trigger.yaml #1
+#--#sudo k3s kubectl apply -f trigger.yaml #1
 #sudo k3s kubectl apply -f query.yaml #0
 sudo k3s kubectl apply -f store.yaml
 sudo k3s kubectl apply -f broker-proxy.yaml #1
-sudo k3s kubectl apply -f broker-ingress.yaml #1
+#--#sudo k3s kubectl apply -f broker-ingress.yaml #1
 sudo k3s kubectl apply -f query-ingress.yaml #1

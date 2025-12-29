@@ -6,5 +6,6 @@ metadata:
 spec:
   selector:
     app: result-store
+  #template.spec: postresql
   ports:
     - port: 80
